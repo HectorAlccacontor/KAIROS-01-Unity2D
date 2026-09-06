@@ -1,8 +1,7 @@
 ﻿using UnityEngine;
 
 /// <summary>
-/// Controla exclusivamente la apariencia de Kiro.
-/// La física sigue viviendo en PlayerController/Rigidbody2D.
+/// Control visual de Kiro. La animación nunca modifica la física.
 /// </summary>
 [RequireComponent(typeof(PlayerController), typeof(Rigidbody2D))]
 public class KiroVisualController : MonoBehaviour
@@ -49,13 +48,16 @@ public class KiroVisualController : MonoBehaviour
         else if (input < -0.05f) facingRight = false;
 
         bool grounded = controller != null && controller.IsGrounded;
-        bool pushing = grounded && Mathf.Abs(input) > 0.05f && IsPushingCrate(input);
+        bool pushing =
+            grounded &&
+            Mathf.Abs(input) > 0.05f &&
+            IsPushingCrate(input);
 
         Sprite next;
 
         if (!grounded)
         {
-            next = rb.linearVelocity.y > 0.1f
+            next = rb.linearVelocity.y > 0.08f
                 ? (facingRight ? jumpRight : jumpLeft)
                 : (facingRight ? fallRight : fallLeft);
         }
@@ -63,13 +65,14 @@ public class KiroVisualController : MonoBehaviour
         {
             next = facingRight ? pushRight : pushLeft;
         }
-        else if (Mathf.Abs(rb.linearVelocity.x) > 0.15f)
+        else if (Mathf.Abs(rb.linearVelocity.x) > 0.12f)
         {
-            bool frame2 = Mathf.FloorToInt(Time.time * runFramesPerSecond) % 2 == 1;
-            if (facingRight)
-                next = frame2 ? runRight2 : runRight1;
-            else
-                next = frame2 ? runLeft2 : runLeft1;
+            bool frame2 =
+                Mathf.FloorToInt(Time.time * runFramesPerSecond) % 2 == 1;
+
+            next = facingRight
+                ? (frame2 ? runRight2 : runRight1)
+                : (frame2 ? runLeft2 : runLeft1);
         }
         else
         {
@@ -82,16 +85,32 @@ public class KiroVisualController : MonoBehaviour
 
     private bool IsPushingCrate(float input)
     {
+        if (ownCollider == null)
+            return false;
+
+        Bounds b = ownCollider.bounds;
         float direction = Mathf.Sign(input);
-        Vector2 center = (Vector2)transform.position + Vector2.right * direction * 0.48f;
-        Collider2D[] hits = Physics2D.OverlapBoxAll(center, new Vector2(0.35f, 0.80f), 0f);
+
+        Vector2 center = new Vector2(
+            b.center.x + direction * (b.extents.x + 0.16f),
+            b.center.y
+        );
+
+        Vector2 size = new Vector2(
+            0.30f,
+            b.size.y * 0.72f
+        );
+
+        Collider2D[] hits =
+            Physics2D.OverlapBoxAll(center, size, 0f);
 
         foreach (Collider2D hit in hits)
         {
-            if (hit == null || hit == ownCollider || hit.transform.root == transform.root)
+            if (hit == null || hit == ownCollider)
                 continue;
 
             Rigidbody2D hitRb = hit.attachedRigidbody;
+
             if (hitRb != null &&
                 hitRb.bodyType == RigidbodyType2D.Dynamic &&
                 hit.gameObject.name.Contains("Crate"))
